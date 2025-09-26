@@ -1,3 +1,8 @@
+# nvim-config
+
+[!NOTE]
+This config is tailored for my personal workflow, but feel free to use it as a starting point for your own setup.
+
 ## Installation
 
 1.  **Backup your current nvim config:**
@@ -12,6 +17,8 @@
 
 3.  **Install dependencies:**
     Make sure you have `ripgrep` and `fd` installed.
+    - `ripgrep` is used by `telescope.nvim` for `live_grep`.
+    - `fd` is used by `yazi.nvim`.
 
 4.  **Set Nerd Font:**
     For the icons to render correctly, please set a [Nerd Font](https://www.nerdfonts.com/) in your terminal.

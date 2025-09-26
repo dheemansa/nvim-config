@@ -1,6 +1,3 @@
-# nvim-config
-Personal Use
-
 ## Installation
 
 1.  **Backup your current nvim config:**

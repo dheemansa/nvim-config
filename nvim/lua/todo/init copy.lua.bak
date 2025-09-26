@@ -1,0 +1,791 @@
+-- File: ~/.config/nvim/lua/todo/init.lua
+local M = {}
+
+-- Correct Plenary dependencies
+local Path = require('plenary.path')
+local async = require('plenary.async')
+local Job = require('plenary.job')
+local strings = require('plenary.strings')
+
+-- Default Configuration
+local default_config = {
+  todo_file = vim.fn.stdpath("data") .. "/todos.json",
+  backup_file = vim.fn.stdpath("data") .. "/todos.backup.json",
+  max_display = 5,
+  menu_width = 60,
+  menu_max_width = 80,
+  text_display_length = 35,
+  text_truncate_length = 32,
+  auto_backup = true,
+  date_format = "%Y-%m-%d %H:%M:%S",
+  auto_delete_completed_after_24h = false,
+  show_stats = true,
+  ask_before_delete = true, -- Ask for confirmation before deleting tasks
+}
+
+-- Configuration
+M.config = {}
+
+-- Internal state
+local todos = {}
+local current_menu = nil
+local prune_completed_tasks
+
+-- Utility functions
+local function log(message, level)
+  vim.notify("[Todo] " .. message, level or vim.log.levels.INFO)
+end
+
+local function validate_config()
+  if M.config.text_truncate_length >= M.config.text_display_length then
+    log("Warning: text_truncate_length should be less than text_display_length", vim.log.levels.WARN)
+    M.config.text_truncate_length = M.config.text_display_length - 3
+  end
+  
+  if M.config.max_display < 1 then
+    M.config.max_display = 1
+  end
+end
+
+local function truncate_text(text, max_length, truncate_length)
+  if not text then return "" end
+  -- Use Plenary's string truncation
+  if strings.strdisplaywidth(text) > max_length then
+    return strings.truncate(text, truncate_length, "...")
+  end
+  return text
+end
+
+local function create_backup()
+  if not M.config.auto_backup then return end
+  
+  local todo_path = Path:new(M.config.todo_file)
+  local backup_path = Path:new(M.config.backup_file)
+  
+  if todo_path:exists() then
+    local content = todo_path:read()
+    if content and content ~= "" then
+      backup_path:write(content, 'w')
+    end
+  end
+end
+
+-- Manual deep extend since plenary.tbl doesn't exist
+local function deep_extend(target, source)
+  for k, v in pairs(source) do
+    if type(v) == "table" and type(target[k]) == "table" then
+      deep_extend(target[k], v)
+    else
+      target[k] = v
+    end
+  end
+  return target
+end
+
+-- Manual filter function
+local function filter_todos(predicate)
+  local result = {}
+  for _, todo in ipairs(todos) do
+    if predicate(todo) then
+      table.insert(result, todo)
+    end
+  end
+  return result
+end
+
+local function sort_todos()
+  -- Hard-coded sort order:
+  -- 1) Pending tasks first
+  -- 2) Earlier created first
+  -- 3) Text alphabetical as final tiebreaker
+    table.sort(todos, function(a, b) 
+      if a.done ~= b.done then
+      return not a.done
+    end
+
+    local a_created = a.created or 0
+    local b_created = b.created or 0
+    if a_created ~= b_created then
+      return a_created < b_created
+    end
+
+    local a_text = (a.text or ""):lower()
+    local b_text = (b.text or ""):lower()
+    return a_text < b_text
+  end)
+end
+
+-- File operations with Plenary Path
+local function load_todos()
+  local todo_path = Path:new(M.config.todo_file)
+  
+  if not todo_path:exists() then
+    todos = {}
+    return
+  end
+  
+  local content = todo_path:read()
+  if not content or content == "" then
+    todos = {}
+    return
+  end
+  
+  local ok, data = pcall(vim.json.decode, content)
+  if ok and type(data) == "table" then
+    todos = data
+    -- Ensure all todos have required fields
+    for i, todo in ipairs(todos) do
+      if not todo.created then
+        todo.created = os.time()
+      end
+      if not todo.id then
+        todo.id = tostring(os.time()) .. "_" .. i
+      end
+      if todo.done == nil then
+        todo.done = false
+      end
+    end
+    -- Prune on load to keep file clean if enabled
+    prune_completed_tasks()
+  else
+    log("Failed to parse todo file, starting with empty list", vim.log.levels.WARN)
+    todos = {}
+  end
+end
+
+local function save_todos()
+  create_backup()
+  
+  local todo_path = Path:new(M.config.todo_file)
+  local parent_dir = todo_path:parent()
+  
+  -- Ensure parent directory exists
+  if not parent_dir:exists() then
+    parent_dir:mkdir({ parents = true })
+  end
+  
+  local ok, encoded = pcall(vim.json.encode, todos)
+  if ok then
+    todo_path:write(encoded, 'w')
+  else
+    log("Failed to encode todos for saving", vim.log.levels.ERROR)
+  end
+end
+
+-- Prune completed tasks older than 24 hours if auto-delete is enabled
+prune_completed_tasks = function()
+  if not M.config.auto_delete_completed_after_24h then
+    return false
+  end
+
+  local now = os.time()
+  local kept = {}
+  local pruned_any = false
+
+  for _, todo in ipairs(todos) do
+    if todo.done then
+      local completed_at = todo.modified or todo.created or 0
+      if (now - completed_at) >= 24 * 60 * 60 then
+        pruned_any = true
+      else
+        table.insert(kept, todo)
+      end
+    else
+      table.insert(kept, todo)
+    end
+  end
+
+  if pruned_any then
+    todos = kept
+    save_todos()
+  end
+
+  return pruned_any
+end
+
+-- Async save operation using Plenary async
+local save_todos_async = async.wrap(function(callback)
+  vim.defer_fn(function()
+    local success = pcall(save_todos)
+    callback(success)
+  end, 50)
+end, 1)
+
+-- Todo management functions
+local function generate_todo_id()
+  return tostring(os.time()) .. "_" .. math.random(1000, 9999)
+end
+
+-- Public API
+
+-- Add a new todo (async)
+M.add_async = async.wrap(function(text, callback)
+  if not text or vim.trim(text) == "" then
+    callback(false, "Empty task text")
+    return
+  end
+  
+  local new_todo = {
+    id = generate_todo_id(),
+    text = vim.trim(text),
+    done = false,
+    created = os.time(),
+    created_str = os.date(M.config.date_format)
+  }
+  
+  table.insert(todos, new_todo)
+  sort_todos()
+  
+  save_todos_async(function(success)
+    callback(success, success and "Task added successfully!" or "Failed to save task")
+  end)
+end, 2)
+
+-- Synchronous add for backward compatibility
+function M.add(text)
+  if not text or vim.trim(text) == "" then return false end
+  
+  local new_todo = {
+    id = generate_todo_id(),
+    text = vim.trim(text),
+    done = false,
+    created = os.time(),
+    created_str = os.date(M.config.date_format)
+  }
+  
+  table.insert(todos, new_todo)
+  sort_todos()
+  save_todos()
+  return true
+end
+
+-- Toggle todo completion
+function M.toggle(index)
+  if todos[index] then
+    todos[index].done = not todos[index].done
+    todos[index].modified = os.time()
+    save_todos()
+    -- Optionally prune immediately if a task was completed and is already older than 24h
+    prune_completed_tasks()
+    return true
+  end
+  return false
+end
+
+-- Remove todo
+function M.remove(index)
+  if todos[index] then
+    table.remove(todos, index)
+    save_todos()
+    return true
+  end
+  return false
+end
+
+-- Edit todo text
+function M.edit(index, new_text)
+  if todos[index] and new_text and vim.trim(new_text) ~= "" then
+    todos[index].text = vim.trim(new_text)
+    todos[index].modified = os.time()
+    save_todos()
+    return true
+  end
+  return false
+end
+
+-- Get todos with filtering
+function M.list(filter_type)
+  prune_completed_tasks()
+  sort_todos()
+  if filter_type == "done" then
+    return filter_todos(function(todo) return todo.done end)
+  elseif filter_type == "pending" then
+    return filter_todos(function(todo) return not todo.done end)
+  end
+  return todos
+end
+
+-- Get pending todos
+function M.get_pending()
+  return M.list("pending")
+end
+
+-- Get completed todos
+function M.get_completed()
+  return M.list("done")
+end
+
+-- Get completion stats
+function M.stats()
+  local done = 0
+  for _, todo in ipairs(todos) do
+    if todo.done then done = done + 1 end
+  end
+  local total = #todos
+  local pending = total - done
+  local completion_rate = total > 0 and math.floor((done / total) * 100) or 0
+  
+  return {
+    done = done,
+    pending = pending,
+    total = total,
+    completion_rate = completion_rate
+  }
+end
+
+-- Get formatted display lines for dashboard
+function M.display(max_items)
+  max_items = max_items or M.config.max_display
+  
+  if #todos == 0 then
+    return { "No tasks today! :)" }
+  end
+  
+  local lines = {}
+  local shown = 0
+  local sorted_todos = M.list()
+  
+  for i, todo in ipairs(sorted_todos) do
+    if shown >= max_items then
+      local remaining = #todos - shown
+      table.insert(lines, string.format("... and %d more", remaining))
+      break
+    end
+    
+    local icon = todo.done and "✓" or "○"
+    local text = truncate_text(todo.text, M.config.text_display_length, M.config.text_truncate_length)
+    
+    table.insert(lines, string.format("%s %s", icon, text))
+    shown = shown + 1
+  end
+  
+  return lines
+end
+
+-- Menu state management
+local function close_menu()
+  if current_menu and current_menu.win_id and vim.api.nvim_win_is_valid(current_menu.win_id) then
+    vim.api.nvim_win_close(current_menu.win_id, true)
+  end
+  current_menu = nil
+end
+
+local function get_task_index_from_line(line_num)
+  local stats_lines = M.config.show_stats and 2 or 0
+  if line_num <= stats_lines or #todos == 0 then return nil end
+  local task_index = line_num - stats_lines
+  return (task_index <= #todos) and task_index or nil
+end
+
+local function validate_cursor_position(current_line)
+  local stats_lines = M.config.show_stats and 2 or 0
+  local first_task_line = stats_lines + 1
+  
+  if #todos == 0 then
+    return 1
+  end
+  return math.max(first_task_line, math.min(current_line, #todos + stats_lines))
+end
+
+local function build_menu_lines()
+  local lines = {}
+  
+  if M.config.show_stats then
+    local stats = M.stats()
+    table.insert(lines, string.format("📋 Tasks: %d/%d completed (%d%%)", stats.done, stats.total, stats.completion_rate))
+    table.insert(lines, "")
+  end
+  
+  if #todos == 0 then
+    table.insert(lines, "✨ No tasks - press 'a' to add one")
+  else
+    local sorted_todos = M.list()
+    for i, todo in ipairs(sorted_todos) do
+      local icon = todo.done and "[✓]" or "[ ]"
+      local text = truncate_text(todo.text, M.config.menu_width - 10, M.config.menu_width - 15)
+      local age = ""
+      
+      if todo.created then
+        local days_old = math.floor((os.time() - todo.created) / (24 * 60 * 60))
+        if days_old > 0 then
+          age = string.format(" (%dd)", days_old)
+        end
+      end
+      
+      table.insert(lines, string.format("  %s %s%s", icon, text, age))
+    end
+  end
+  
+  table.insert(lines, "")
+  table.insert(lines, "󰘳 j/k=move, x=toggle, dd=delete, e=edit, a=add, s=sort, q=quit")
+  
+  return lines
+end
+
+local function refresh_menu_content()
+  if not current_menu or not current_menu.buf or not vim.api.nvim_buf_is_valid(current_menu.buf) then
+    return false
+  end
+  
+  local lines = build_menu_lines()
+  
+  -- Update buffer content
+  vim.bo[current_menu.buf].modifiable = true
+  vim.api.nvim_buf_set_lines(current_menu.buf, 0, -1, false, lines)
+  vim.bo[current_menu.buf].modifiable = false
+  
+  -- Validate and update cursor position
+  current_menu.current_line = validate_cursor_position(current_menu.current_line)
+  
+  if vim.api.nvim_win_is_valid(current_menu.win_id) then
+    vim.api.nvim_win_set_cursor(current_menu.win_id, {current_menu.current_line, 2})
+    
+    -- Clear previous highlights
+    vim.api.nvim_buf_clear_namespace(current_menu.buf, -1, 0, -1)
+    
+    -- Highlight current line if we have tasks
+    local stats_lines = M.config.show_stats and 2 or 0
+    if #todos > 0 and current_menu.current_line > stats_lines then
+      vim.api.nvim_buf_add_highlight(current_menu.buf, -1, "Visual", current_menu.current_line - 1, 0, -1)
+    end
+  end
+  
+  return true
+end
+
+-- Create floating window manually (since plenary.popup might not work as expected)
+local function create_floating_window(lines, opts)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  
+  local win_opts = {
+    relative = "editor",
+    width = opts.width,
+    height = opts.height,
+    col = opts.col,
+    row = opts.row,
+    border = "rounded",
+    title = opts.title,
+    title_pos = "center",
+    style = "minimal"
+  }
+  
+  local win = vim.api.nvim_open_win(buf, true, win_opts)
+  return win, buf
+end
+
+-- Interactive menu
+function M.menu()
+  -- Close existing menu if open
+  close_menu()
+  
+  sort_todos()
+  local lines = build_menu_lines()
+  
+  local stats_lines = M.config.show_stats and 2 or 0
+  local current_line = #todos > 0 and (stats_lines + 1) or 1
+  
+  -- Calculate popup dimensions
+  local width = math.max(M.config.menu_width, math.min(M.config.menu_max_width, vim.o.columns - 10))
+  local height = math.min(#lines + 2, vim.o.lines - 8)
+  
+  -- Create floating window
+  local win_id, buf = create_floating_window(lines, {
+    title = " 📝 Todo Manager ",
+    width = width,
+    height = height,
+    col = math.floor((vim.o.columns - width) / 2),
+    row = math.floor((vim.o.lines - height) / 2 - 1),
+  })
+  
+  -- Set buffer options
+  vim.bo[buf].modifiable = false
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = "TodoList"
+  vim.wo[win_id].cursorline = false
+  vim.wo[win_id].number = false
+  vim.wo[win_id].relativenumber = false
+  
+  -- Store menu state
+  current_menu = {
+    buf = buf,
+    win_id = win_id,
+    current_line = validate_cursor_position(current_line),
+  }
+  
+  -- Set cursor position
+  vim.api.nvim_win_set_cursor(win_id, {current_menu.current_line, 2})
+  
+  -- Highlight current line
+  if #todos > 0 and current_menu.current_line > stats_lines then
+    vim.api.nvim_buf_add_highlight(buf, -1, "Visual", current_menu.current_line - 1, 0, -1)
+  end
+  
+  -- Key mappings
+  local function map(key, fn, desc)
+    vim.keymap.set("n", key, fn, { buffer = buf, silent = true, desc = desc })
+  end
+  
+  local function get_current_task()
+    if not current_menu then return nil end
+    return get_task_index_from_line(current_menu.current_line)
+  end
+  
+  local function move_cursor(direction)
+    if #todos == 0 or not current_menu then return end
+    
+    local stats_lines = M.config.show_stats and 2 or 0
+    local new_line = current_menu.current_line
+    
+    if direction == "down" then
+      new_line = math.min(current_menu.current_line + 1, #todos + stats_lines)
+    elseif direction == "up" then
+      new_line = math.max(current_menu.current_line - 1, stats_lines + 1)
+    end
+    
+    if new_line ~= current_menu.current_line and new_line > stats_lines and new_line <= #todos + stats_lines then
+      current_menu.current_line = new_line
+      refresh_menu_content()
+    end
+  end
+  
+  -- Navigation
+  map("j", function() move_cursor("down") end, "Move down")
+  map("k", function() move_cursor("up") end, "Move up")
+  map("<Down>", function() move_cursor("down") end, "Move down")
+  map("<Up>", function() move_cursor("up") end, "Move up")
+  
+  -- Exit
+  map("q", close_menu, "Quit")
+  map("<Esc>", close_menu, "Quit")
+  
+  -- Actions with async support
+  map("a", function()
+    vim.ui.input({ prompt = "New task: " }, function(input)
+      if input then
+        M.add_async(input, function(success, message)
+          if success then
+            current_menu.current_line = #todos + (M.config.show_stats and 2 or 0)
+            refresh_menu_content()
+          end
+          log(message)
+        end)
+      end
+    end)
+  end, "Add new task")
+  
+  map("x", function()
+    local task_idx = get_current_task()
+    if task_idx and M.toggle(task_idx) then
+      refresh_menu_content()
+      local status = todos[task_idx].done and "completed" or "reopened"
+      log(string.format("Task %s", status))
+    end
+  end, "Toggle task")
+  
+  -- Delete task with dd keybind
+  map("dd", function()
+    local task_idx = get_current_task()
+    if task_idx and todos[task_idx] then
+      local task_text = todos[task_idx].text
+      local display_text = truncate_text(task_text, 30, 27)
+      
+      local should_delete = true
+      if M.config.ask_before_delete then
+        local confirm = vim.fn.confirm(
+          string.format('Delete task: "%s"?', display_text),
+          "&Yes\n&No", 2
+        )
+        should_delete = confirm == 1
+      end
+      
+      if should_delete and M.remove(task_idx) then
+        -- Adjust cursor position after deletion
+        local stats_lines = M.config.show_stats and 2 or 0
+        if current_menu.current_line > #todos + stats_lines and #todos > 0 then
+          current_menu.current_line = #todos + stats_lines
+        elseif #todos == 0 then
+          current_menu.current_line = 1
+        end
+        refresh_menu_content()
+        log("Task deleted")
+      end
+    end
+  end, "Delete task")
+  
+  map("e", function()
+    local task_idx = get_current_task()
+    if task_idx and todos[task_idx] then
+      vim.ui.input({
+        prompt = "Edit task: ",
+        default = todos[task_idx].text
+      }, function(new_text)
+        if new_text and M.edit(task_idx, new_text) then
+          refresh_menu_content()
+          log("Task updated")
+        end
+      end)
+    end
+  end, "Edit task")
+  
+  map("s", function()
+    sort_todos()
+    refresh_menu_content()
+    log("Sorted (pending first, then created, then text)")
+  end, "Re-apply fixed sort")
+  
+  -- Alternative keys
+  map("<Space>", function()
+    local task_idx = get_current_task()
+    if task_idx and M.toggle(task_idx) then
+      refresh_menu_content()
+    end
+  end, "Toggle task")
+  
+  map("<CR>", function()
+    local task_idx = get_current_task()
+    if task_idx and todos[task_idx] then
+      vim.ui.input({
+        prompt = "Edit task: ",
+        default = todos[task_idx].text
+      }, function(new_text)
+        if new_text and M.edit(task_idx, new_text) then
+          refresh_menu_content()
+        end
+      end)
+    end
+  end, "Edit task")
+  
+  -- Bulk operations
+  map("D", function()
+    local completed = M.get_completed()
+    if #completed > 0 then
+      local should_delete = true
+      if M.config.ask_before_delete then
+        local confirm = vim.fn.confirm(
+          string.format('Delete all %d completed tasks?', #completed),
+          "&Yes\n&No", 2
+        )
+        should_delete = confirm == 1
+      end
+      
+      if should_delete then
+        todos = M.get_pending()
+        save_todos()
+        current_menu.current_line = 1
+        refresh_menu_content()
+        log(string.format("Deleted %d completed tasks", #completed))
+      end
+    else
+      log("No completed tasks to delete")
+    end
+  end, "Delete all completed tasks")
+  
+  -- Handle window close events
+  vim.api.nvim_create_autocmd({"WinClosed", "BufWipeout"}, {
+    buffer = buf,
+    callback = function()
+      current_menu = nil
+    end,
+    once = true
+  })
+end
+
+-- Setup function
+function M.setup(opts)
+  M.config = deep_extend(vim.deepcopy(default_config), opts or {})
+  validate_config()
+  load_todos()
+  
+  -- Create commands
+  vim.api.nvim_create_user_command("TodoAdd", function(cmd)
+    if cmd.args and M.add(cmd.args) then
+      log("Task added!")
+    else
+      log("Please provide a task description")
+    end
+  end, { 
+    nargs = 1, 
+    desc = "Add a new todo task"
+  })
+  
+  vim.api.nvim_create_user_command("TodoMenu", M.menu, { 
+    desc = "Open todo menu" 
+  })
+  
+  vim.api.nvim_create_user_command("TodoList", function(cmd)
+    local filter_type = cmd.args ~= "" and cmd.args or nil
+    local filtered_todos = M.list(filter_type)
+    local stats = M.stats()
+    
+    print(string.format("Tasks: %d/%d completed (%d%%)", stats.done, stats.total, stats.completion_rate))
+    if #filtered_todos == 0 then
+      print("No tasks!")
+    else
+      for i, todo in ipairs(filtered_todos) do
+        local icon = todo.done and "[✓]" or "[ ]"
+        local age = ""
+        if todo.created then
+          local days_old = math.floor((os.time() - todo.created) / (24 * 60 * 60))
+          if days_old > 0 then
+            age = string.format(" (%dd old)", days_old)
+          end
+        end
+        print(string.format("%d. %s %s%s", i, icon, todo.text, age))
+      end
+    end
+  end, { 
+    nargs = "?", 
+    desc = "List all todos",
+    complete = function() return {"done", "pending"} end
+  })
+  
+  vim.api.nvim_create_user_command("TodoStats", function()
+    local stats = M.stats()
+    print(string.format("📊 Todo Statistics:"))
+    print(string.format("   Total tasks: %d", stats.total))
+    print(string.format("   Completed: %d", stats.done))
+    print(string.format("   Pending: %d", stats.pending))
+    print(string.format("   Completion rate: %d%%", stats.completion_rate))
+  end, { desc = "Show todo statistics" })
+  
+  vim.api.nvim_create_user_command("TodoClear", function(cmd)
+    local filter_type = cmd.args
+    if filter_type == "completed" then
+      local completed_count = #M.get_completed()
+      
+      local should_delete = true
+      if M.config.ask_before_delete then
+        local confirm = vim.fn.confirm("Clear all completed tasks?", "&Yes\n&No", 2)
+        should_delete = confirm == 1
+      end
+      
+      if should_delete then
+        todos = M.get_pending()
+        save_todos()
+        log(string.format("Cleared %d completed tasks", completed_count))
+      end
+    elseif filter_type == "all" then
+      local should_delete = true
+      if M.config.ask_before_delete then
+        local confirm = vim.fn.confirm("Clear all tasks?", "&Yes\n&No", 2)
+        should_delete = confirm == 1
+      end
+      
+      if should_delete then
+        todos = {}
+        save_todos()
+        log("All tasks cleared")
+      end
+    else
+      log("Usage: TodoClear {completed|all}")
+    end
+  end, { 
+    nargs = 1, 
+    desc = "Clear completed or all todos",
+    complete = function() return {"completed", "all"} end
+  })
+end
+
+return M

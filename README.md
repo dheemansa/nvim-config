@@ -1,4 +1,3 @@
-
 > [!NOTE]
 *This config is tailored for my personal workflow, but feel free to use it as a starting point for your own setup.*
 
@@ -15,9 +14,16 @@
     ```
 
 3.  **Install dependencies:**
-    Make sure you have `ripgrep` and `fd` installed.
+    Make sure you have `ripgrep`, `yazi` and `fd` installed.
     - `ripgrep` is used by `telescope.nvim` for `live_grep`.
-    - `fd` is used by `yazi.nvim`.
+    - `fd` and `yazi` is used by `yazi.nvim`.
+
 
 4.  **Set Nerd Font:**
     For the icons to render correctly, please set a [Nerd Font](https://www.nerdfonts.com/) in your terminal.
+
+## Screenshots
+
+![screenshot.png](screenshots/screenshot.png)
+![screenshot1.png](screenshots/screenshot1.png)
+![screenshot3.png](screenshots/screenshot3.png)

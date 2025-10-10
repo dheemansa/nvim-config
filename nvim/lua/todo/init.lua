@@ -1,6 +1,7 @@
 -- File: ~/.config/nvim/lua/todo/init.lua
 local M = {}
 
+
 -- Correct Plenary dependencies
 local Path = require('plenary.path')
 local async = require('plenary.async')
@@ -81,6 +82,7 @@ local function deep_extend(target, source)
   end
   return target
 end
+
 
 -- Manual filter function
 local function filter_todos(predicate)

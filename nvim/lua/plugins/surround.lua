@@ -1,14 +1,9 @@
 return{
-{
-    "kylechui/nvim-surround",
-    version = "^3.0.0",
-    event = "VeryLazy",
-    config = function()
-        -- Disable default 's' key (substitute) since it's redundant with 'cl'
-        vim.keymap.set("n", "s", "<Nop>")
-        vim.keymap.set("n", "S", "<Nop>")
-
-        require("nvim-surround").setup({
+    {
+        "kylechui/nvim-surround",
+        version = "^3.0.0",
+        event = "VeryLazy",
+        opts = {
             keymaps = {
                 -- Insert mode
                 insert = "<C-g>s",
@@ -29,7 +24,6 @@ return{
                 change = "cs",            -- Keep 'c' prefix for change
                 change_line = "cS",       -- Line-wise change
             },
-        })
-    end
-}
+        }
+    }
 }

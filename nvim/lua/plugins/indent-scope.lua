@@ -1,54 +1,29 @@
 return {
-    --{
-    --    "nvimdev/indentmini.nvim",
-    --    config = function()
-    --        require("indentmini").setup() -- use default config
-    --    end,
-    --},
-    --{
-    --    "dheemansa/mini.indentscope",
-    --    config = function()
-    --         require('mini.indentscope').setup({
-    --            guides = {
-    --                symbol = '│',
-    --                highlight = 'MiniIndentscopeInactive',
-    --            },
-    --            active_scope = {
-    --                symbol = '│',
-    --                highlight = 'MiniIndentscopeActive',
-    --                animate = true,
-    --            }, 
-    --            ignore_filetype = {'alpha','TodoList'}
-    --        })
-    --    end,
-    --},
-    --{
-    --    "lukas-reineke/indent-blankline.nvim",
-    --    main = "ibl",
-    --    ---@module "ibl"
-    --    ---@type ibl.config
-    --    opts = {
-    --        indent = { char = "│" },
-    --    },
-    --    event = "VeryLazy"
-    --}
-    --{
-    --    dir = '/home/dheeman/repository/mini.indentscope',
-    --    name = 'mini.indentscope',
-    --    config = function()
-    --        require('mini.indentscope').setup({
-    --            show_guides = true,
-    --            guides = {
-    --                symbol = '│',
-    --                highlight = 'MiniIndentscopeInactive',
-    --            },
-    --            active_scope = {
-    --                symbol = '│',
-    --                highlight = 'MiniIndentscopeActive',
-    --                animate = true,
-    --            }, 
-    --            ignore_filetype = {'alpha','TodoList'}
-    --        })
-    --    end,
-    --}
+	{
+		"nvimdev/indentmini.nvim",
+		enabled = false,
+		opts = {},
+	},
+
+	{
+		"lukas-reineke/indent-blankline.nvim",
+		main = "ibl",
+		opts = {
+			indent = { char = "│" },
+		},
+		event = "VeryLazy",
+	},
+
+	{
+		"nvim-mini/mini.indentscope",
+		event = "VeryLazy",
+		enabled = true,
+		version = "*",
+		opts = {
+			symbol = "│",
+			options = {
+				try_as_border = true,
+			},
+		},
+	},
 }

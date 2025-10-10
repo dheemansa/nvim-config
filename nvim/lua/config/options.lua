@@ -35,7 +35,7 @@ vim.opt.incsearch = true   -- Show search results as you type
 
 -- UI improvements
 vim.opt.showmode = false   -- Don't show mode in command line (handled by lualine)
-vim.opt.showcmd = true     -- Show command in status line
+--vim.opt.showcmd = true     -- Show command in status line
 vim.opt.cmdheight = 1      -- Height of command line
 vim.opt.laststatus = 3     -- Always show status line
 vim.opt.signcolumn = "yes" -- Always show sign column
@@ -44,25 +44,30 @@ vim.opt.signcolumn = "yes" -- Always show sign column
 vim.opt.updatetime = 250   -- Faster completion
 vim.opt.timeoutlen = 300   -- Faster key sequence timeout
 
+---- AUTOCMD
 
 -- Force Beam Cursor in alacritty on nvim exit
-vim.api.nvim_create_autocmd("ExitPre", {
-  group = vim.api.nvim_create_augroup("CursorStyle", { clear = true }),
-  command = "set guicursor=a:ver100",  -- sets beam in all modes
-  desc = "Reset cursor to beam when exiting Neovim",
-})
-
-
+--vim.api.nvim_create_autocmd("ExitPre", {
+--    group = vim.api.nvim_create_augroup("CursorStyle", { clear = true }),
+--    command = "set guicursor=a:ver100",  -- sets beam in all modes
+--    desc = "Reset cursor to beam when exiting Neovim",
+--})
 -- Highlight yanked text for a short time
 vim.api.nvim_create_autocmd("TextYankPost", {
-  callback = function()
-    vim.highlight.on_yank({
-      higroup = "IncSearch", -- highlight group
-      timeout = 200,         -- time in ms
-      on_visual = true,      -- also highlight visually selected text
-    })
-  end,
+    callback = function()
+        vim.hl.on_yank({
+            higroup = "IncSearch", -- highlight group
+            timeout = 200,         -- time in ms
+            on_visual = true,      -- also highlight visually selected text
+        })
+    end,
 })
 
-
+-- Disable for plugin/dashboard UI buffers
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "lazy", "alpha", "TelescopePrompt", "NvimTree" },
+  callback = function()
+    vim.b.miniindentscope_disable = true
+  end,
+})
 

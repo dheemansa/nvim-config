@@ -1,23 +1,32 @@
-return{
-    --{"catppuccin/nvim", name = "catppuccin" ,priority = 1000},
-    {
-        "folke/tokyonight.nvim",
-        lazy = false,
-        priority = 1000,
-        config = function()
-            require("tokyonight").setup({
-                transparent = true,
-                on_colors = function(colors)
-                    colors.bg_statusline = colors.none -- Makes statusline background transparent
-                end,
-            })
-        end,
-    },
-    {
-        'norcalli/nvim-colorizer.lua',
-        event = 'BufReadPost',
-        config = function()
-            require 'colorizer'.setup()
-        end,
-    }
+return {
+	{
+		"nyoom-engineering/oxocarbon.nvim",
+		enabled = true,
+		lazy = false,
+		priority = 1000,
+	},
+	{
+		"folke/tokyonight.nvim",
+		lazy = true,
+		enabled = true,
+		priority = 1000,
+		opts = {
+			transparent = true,
+		},
+	},
+	{
+		"olimorris/onedarkpro.nvim",
+		priority = 1000, -- Ensure it loads first
+		opts = {
+			options = {
+				transparency = true,
+			},
+		},
+	},
+	{ "dasupradyumna/midnight.nvim", lazy = false, priority = 1000 },
+	{
+		"norcalli/nvim-colorizer.lua",
+		event = "BufReadPost",
+		opts = {},
+	},
 }

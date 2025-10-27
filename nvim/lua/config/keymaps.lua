@@ -3,7 +3,6 @@ local keymap = vim.keymap.set
 
 -- Change Keybinds To switch to normal mode
 keymap("i", "jk", "<Esc>", { desc = "Exit insert mode" })
---keymap("i", "jj", "<Esc>", { desc = "Exit insert mode" })
 
 -- Prevent `x` from yanking deleted characters
 keymap("n", "x", '"_x', { desc = "Delete char without copying" })
@@ -52,6 +51,8 @@ keymap("n", "<leader>ff", "<cmd>Telescope find_files<cr>", { desc = "Telescope f
 keymap("n", "<leader>fg", "<cmd>Telescope live_grep<cr>", { desc = "Telescope live grep" })
 keymap("n", "<leader>fb", "<cmd>Telescope buffers<cr>", { desc = "Telescope buffers" })
 keymap("n", "<leader>fd", "<cmd>Telescope diagnostics<cr>", { desc = "Telescope LSP diagnostics" })
+
+keymap("n", "<leader>tt", "<cmd>Floaterminal<cr>", { desc = "Open/Close Floating  Terminal" })
 
 keymap("n", "<Leader>ll", require("lsp_lines").toggle, { desc = "Toggle lsp_lines" })
 

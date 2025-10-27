@@ -1,9 +1,8 @@
 return {
 	"nvim-lualine/lualine.nvim",
 	dependencies = { "nvim-tree/nvim-web-devicons" },
-	--enabled = false,
-	--event = "VeryLazy",
-	lazy = false, -- Statusline should load early
+	event = "VeryLazy",
+	--lazy = false, -- Statusline should load early
 	config = function()
 		local colors = {
 			black = "#161616", -- base00
@@ -62,7 +61,7 @@ return {
 				theme = custom_theme,
 				component_separators = { left = "", right = "" },
 				section_separators = { left = "", right = "" },
-				--disabled_filetypes = {'alpha'}
+				disabled_filetypes = { "alpha" },
 			},
 			sections = {
 				lualine_x = {

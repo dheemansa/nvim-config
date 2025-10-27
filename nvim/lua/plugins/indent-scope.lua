@@ -1,11 +1,5 @@
 return {
 	{
-		"nvimdev/indentmini.nvim",
-		enabled = false,
-		opts = {},
-	},
-
-	{
 		"lukas-reineke/indent-blankline.nvim",
 		main = "ibl",
 		opts = {
@@ -23,6 +17,7 @@ return {
 			symbol = "│",
 			options = {
 				try_as_border = true,
+				border = "top",
 			},
 		},
 	},

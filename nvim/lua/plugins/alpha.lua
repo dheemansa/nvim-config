@@ -6,7 +6,7 @@ return {
 		local dashboard = require("alpha.themes.dashboard")
 
 		-- Initialize todo plugin
-		local todo = require("todo")
+		local todo = require("local_plugins.todo")
 		todo.setup({
 			-- Optional: customize config for dashboard
 			max_display = 5,
@@ -31,14 +31,8 @@ return {
 				vim.ui.input({ prompt = "New task: " }, function(input)
 					if input and input ~= "" then
 						-- Use async add for better UX
-						todo.add_async(input, function(success, message)
-							if success then
-								vim.notify("Task added!", vim.log.levels.INFO)
-								refresh_todos()
-							else
-								vim.notify("Failed to add task: " .. message, vim.log.levels.ERROR)
-							end
-						end)
+						vim.cmd("TodoAdd " .. input)
+						refresh_todos()
 					end
 				end)
 			end),
@@ -97,12 +91,18 @@ return {
 			dashboard.section.footer,
 		}
 
-		-- Footer with startup time
-		dashboard.section.footer.val = function()
-			local stats = require("lazy").stats()
-			local ms = math.floor(stats.startuptime * 100 + 0.5) / 100
-			return { "⚡ Loaded " .. stats.loaded .. "/" .. stats.count .. " plugins in " .. ms .. "ms" }
-		end
+		dashboard.section.footer.val = { "" } -- start empty
+
+		vim.api.nvim_create_autocmd("User", {
+			pattern = "VeryLazy",
+			callback = vim.schedule_wrap(function()
+				local stats = require("lazy").stats()
+				local ms = math.floor(stats.startuptime * 100 + 0.5) / 100
+				dashboard.section.footer.val =
+					{ "⚡ Loaded " .. stats.loaded .. "/" .. stats.count .. " plugins in " .. ms .. "ms" }
+				vim.cmd("AlphaRedraw")
+			end),
+		})
 
 		-- Auto-refresh todos when dashboard is shown
 		vim.api.nvim_create_autocmd("User", {

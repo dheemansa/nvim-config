@@ -1,49 +1,36 @@
 return {
-    {
-        "williamboman/mason.nvim",
-        lazy = true,
-        cmd = {
-            "Mason",
-            "MasonInstall",
-            "MasonUninstall",
-            "MasonUninstallAll",
-            "MasonLog",
-            "MasonUpdate",
-            "MasonUpdateAll",
-        },
-        opts = {}
-    },
-    {
-        "williamboman/mason-lspconfig.nvim",
-        lazy = true,
-        opts = {
-            ensure_installed = { "lua_ls", "pyright" },
-            automatic_enable = false
-        }
-    },
-    {
-        "neovim/nvim-lspconfig",
-        dependencies = {
-            "williamboman/mason.nvim",
-            "williamboman/mason-lspconfig.nvim",
-        },
-        event = { "BufReadPre", "BufNewFile" },
-        --config = function()
-            --    require("mason").setup()
-            --    require("mason-lspconfig").setup({
-                --        ensure_installed = { "lua_ls", "pyright" },
-                --        automatic_enable = false
-                --    })
+	{
+		"williamboman/mason.nvim",
+		lazy = true,
+		cmd = {
+			"Mason",
+			"MasonInstall",
+			"MasonUninstall",
+			"MasonUninstallAll",
+			"MasonLog",
+			"MasonUpdate",
+			"MasonUpdateAll",
+		},
+		opts = {},
+	},
+	{
+		"neovim/nvim-lspconfig",
+		config = function()
+			local capabilities = require("blink.cmp").get_lsp_capabilities()
+			vim.lsp.config("lua_ls", { capabilities = capabilities })
+			vim.lsp.config("pyright", { capabilities = capabilities })
+			vim.lsp.enable("lua_ls")
+			vim.lsp.enable("pyright")
+		end,
+		event = { "BufReadPre", "BufNewFile" },
+	},
 
-                --end
-            },
-
-            {
-                "https://git.sr.ht/~whynothugo/lsp_lines.nvim",
-                event = "LspAttach",
-                config = function()
-                    require("lsp_lines").setup()
-                    vim.diagnostic.config({ virtual_text = false })
-                end
-            },
-        }
+	{
+		"https://git.sr.ht/~whynothugo/lsp_lines.nvim",
+		event = "LspAttach",
+		config = function()
+			require("lsp_lines").setup()
+			vim.diagnostic.config({ virtual_text = false })
+		end,
+	},
+}

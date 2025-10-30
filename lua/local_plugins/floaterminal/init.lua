@@ -107,7 +107,7 @@ function M.setup(opts)
 		height = 0.8, -- Fraction of lines (0-1) or absolute value (>1)
 	}, opts)
 
-	vim.keymap.set("t", "<esc><esc>", "<c-\\><c-n>")
+	vim.keymap.set("t", "<C-x>", "<C-\\><C-N>", { desc = "terminal escape terminal mode" })
 	vim.api.nvim_create_user_command("Floaterminal", M.toggle_terminal, {})
 end
 

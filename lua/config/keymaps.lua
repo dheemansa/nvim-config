@@ -16,7 +16,11 @@ keymap("n", "<leader>j", ":m .+1<CR>==", { desc = "Move current line down", sile
 -- Move current line up
 keymap("n", "<leader>k", ":m .-2<CR>==", { desc = "Move current line up", silent = true })
 
-keymap("n", "<leader><tab>", ":bnext<CR>", { desc = "Next buffer", silent = true })
+keymap("n", "<tab>", ":bnext<CR>", { desc = "Next buffer", silent = true })
+keymap("n", "<leader><tab>", ":bprev<CR>", { desc = "Previous buffer", silent = true })
+
+keymap("n", "<leader>/", "gcc", { desc = "toggle comment" })
+keymap("v", "<leader>/", "gc", { desc = "toggle comment" })
 
 keymap(
 	"n",
@@ -24,6 +28,8 @@ keymap(
 	":%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<Left><Left><Left>",
 	{ desc = "Replace word under cursor globally" }
 )
+
+keymap("n", "<leader>x", "<cmd>bd<cr>", { desc = "Close current buffer", noremap = true, silent = true })
 
 -- Disable default 's' key (substitute) since it's redundant with 'cl'
 -- s is now used by nvim-surround plugin
@@ -34,33 +40,23 @@ keymap("n", "S", "<Nop>")
 keymap("v", "<", "<gv", { desc = "Indent left and keep selection" })
 keymap("v", ">", ">gv", { desc = "Indent right and keep selection" })
 
--- Make current file executable
-keymap("n", "<leader>x", function()
-	vim.cmd("!chmod +x %")
-	print("Made " .. vim.fn.expand("%") .. " executable")
-end, { desc = "Make current file executable" })
+keymap("n", "grr", "<cmd>Telescope lsp_references<cr>", { desc = "Lsp references" })
 
--- Telescope keymaps
---local builtin = require('telescope.builtin')
---keymap('n', '<leader>ff', builtin.find_files, { desc = 'Telescope find files' })
---keymap('n', '<leader>fg', builtin.live_grep, { desc = 'Telescope live grep' })
---keymap('n', '<leader>fb', builtin.buffers, { desc = 'Telescope buffers' })
---keymap('n', '<leader>fd', builtin.diagnostics, { desc = 'Telescope LSP diagnostics' })
-
-keymap("n", "<leader>ff", "<cmd>Telescope find_files<cr>", { desc = "Telescope find files" })
-keymap("n", "<leader>fg", "<cmd>Telescope live_grep<cr>", { desc = "Telescope live grep" })
-keymap("n", "<leader>fb", "<cmd>Telescope buffers<cr>", { desc = "Telescope buffers" })
-keymap("n", "<leader>fd", "<cmd>Telescope diagnostics<cr>", { desc = "Telescope LSP diagnostics" })
-
-keymap("n", "<leader>tt", "<cmd>Floaterminal<cr>", { desc = "Open/Close Floating  Terminal" })
-
-keymap("n", "<Leader>ll", require("lsp_lines").toggle, { desc = "Toggle lsp_lines" })
+keymap({ "n", "t" }, "<A-i>", "<cmd>Floaterminal<cr>", { desc = "Open/Close Floating  Terminal" })
 
 -- Alpha dashboard
 keymap("n", "<leader>a", "<cmd>Alpha<cr>", { desc = "Open dashboard" })
 
 -- Yazi file manager
 keymap("n", "<leader>e", "<cmd>Yazi<cr>", { desc = "Open Yazi file manager" })
+
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "TelescopePrompt",
+	callback = function()
+		keymap("n", "q", "<cmd>quit!<CR>", { buffer = true, silent = true, nowait = true })
+	end,
+	desc = "Close Telescope with 'q'",
+})
 
 -- Disable annoying q: keybind used for commmad history
 vim.api.nvim_create_autocmd("CmdwinEnter", {

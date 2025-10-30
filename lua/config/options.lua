@@ -1,6 +1,9 @@
 -- Enable truecolor support
 vim.o.termguicolors = true
 
+-- Disable mouse in insert mode
+vim.opt.mouse:remove("i") -- Disable mouse in insert mode
+
 -- Line numbers
 vim.opt.number = true
 vim.opt.relativenumber = true
@@ -14,8 +17,10 @@ vim.opt.scrolloff = 10 -- Keep 10 lines above/below cursor
 vim.opt.sidescrolloff = 8
 
 -- Use System Copy-Paste Buffer
-vim.opt.clipboard = "unnamedplus"
-
+-- Schedule the setting after `UiEnter` because it can increase startup-time.
+vim.schedule(function()
+	vim.o.clipboard = "unnamedplus"
+end)
 -- Indentation settings
 vim.opt.tabstop = 4 -- Number of spaces a <Tab> counts for
 vim.opt.shiftwidth = 4 -- Number of spaces used for each step of (auto)indent
@@ -36,6 +41,7 @@ vim.opt.incsearch = true -- Show search results as you type
 
 -- UI improvements
 vim.opt.showmode = false -- Don't show mode in command line (handled by lualine)
+vim.opt.showcmd = false
 vim.o.laststatus = 0 -- hides the statusline
 
 vim.opt.cmdheight = 1 -- Height of command line

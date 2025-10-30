@@ -17,6 +17,7 @@ return {
 		"neovim/nvim-lspconfig",
 		dependencies = {
 			"saghen/blink.cmp",
+			"williamboman/mason.nvim",
 		},
 		config = function()
 			-- using it in dependencies to ensure it is loaded before getting capabilities

@@ -23,9 +23,15 @@ return {
 			-- using it in dependencies to ensure it is loaded before getting capabilities
 			local capabilities = require("blink.cmp").get_lsp_capabilities()
 
-			vim.lsp.config("*", { capabilities = capabilities })
+			vim.lsp.config("*", {
+				capabilities = capabilities,
+				settings = {
+					telemetry = {
+						enabled = false,
+					},
+				},
+			})
 
-			vim.lsp.config("lua_ls", { settings = { Lua = { diagnostics = { globals = { "vim" } } } } })
 			vim.lsp.config("pyright", {
 				settings = {
 					python = {

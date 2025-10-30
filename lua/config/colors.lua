@@ -7,10 +7,12 @@ function M.setup(opts)
 	local scheme = opts.colorscheme or "tokyonight"
 	local fallback_scheme = "habamax"
 
-	-- Helper function to preserve fg while setting bg to none
+	-- Helper function to preserve other parameters while setting bg to none
 	local function set_transparent(group)
-		local hl = vim.api.nvim_get_hl(0, { name = group })
-		vim.api.nvim_set_hl(0, group, { fg = hl.fg, bg = "none" })
+		local hl = vim.api.nvim_get_hl(0, { name = group }) or {}
+		local new_hl = vim.deepcopy(hl)
+		new_hl.bg = "none"
+		vim.api.nvim_set_hl(0, group, new_hl)
 	end
 
 	-- load base colorscheme

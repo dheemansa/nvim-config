@@ -21,23 +21,22 @@ return {
 		config = function()
 			-- using it in dependencies to ensure it is loaded before getting capabilities
 			local capabilities = require("blink.cmp").get_lsp_capabilities()
-			-- List of LSP servers to enable
-			local servers = {
-				"lua_ls",
-				"pyright",
-			}
 
-			-- Loop over servers: configure and enable
-			for _, server in ipairs(servers) do
-				vim.lsp.config(server, { capabilities = capabilities })
-				vim.lsp.enable(server)
-			end
+			vim.lsp.config("*", { capabilities = capabilities })
 
-			--vim.lsp.config("lua_ls", { capabilities = capabilities })
-			--vim.lsp.config("pyright", { capabilities = capabilities })
+			vim.lsp.config("lua_ls", { settings = { Lua = { diagnostics = { globals = { "vim" } } } } })
+			vim.lsp.config("pyright", {
+				settings = {
+					python = {
+						analysis = {
+							diagnosticMode = "workspace",
+						},
+					},
+				},
+			})
 
-			--vim.lsp.enable("lua_ls")
-			--vim.lsp.enable("pyright")
+			vim.lsp.enable("lua_ls")
+			vim.lsp.enable("pyright")
 
 			vim.api.nvim_create_autocmd("LspAttach", {
 				callback = function(event)

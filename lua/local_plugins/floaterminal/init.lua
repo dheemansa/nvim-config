@@ -67,13 +67,23 @@ function M.toggle_terminal()
 		})
 
 		if vim.bo[state.floating.buf].buftype ~= "terminal" then
-			-- Use the configured shell
+			-- Save the original shell
+			local original_shell = vim.o.shell
+
+			-- Set the configured shell if provided
 			if config.shell then
-				vim.cmd("terminal " .. config.shell)
-			else
-				vim.cmd.terminal()
+				vim.o.shell = config.shell
 			end
+
+			-- Create terminal
+			vim.cmd.terminal()
+
+			-- Restore original shell
+			vim.o.shell = original_shell
 		end
+
+		-- Prevent terminal from appearing in buffer list
+		vim.bo[state.floating.buf].buflisted = false
 
 		-- Set up keymaps
 		vim.keymap.set(

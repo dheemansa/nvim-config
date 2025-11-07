@@ -1,4 +1,5 @@
 -- Keymaps configuration
+vim.g.mapleader = " "
 local keymap = vim.keymap.set
 
 -- Change Keybinds To switch to normal mode
@@ -11,16 +12,15 @@ keymap("n", "x", '"_x', { desc = "Delete char without copying" })
 keymap("x", "p", '"_dP', { noremap = true, silent = true, desc = "Visual paste without yanking" })
 
 -- Move current line down
-keymap("n", "<leader>j", ":m .+1<CR>==", { desc = "Move current line down", silent = true })
+-- keymap("n", "<leader>j", ":m .+1<CR>==", { desc = "Move current line down", silent = true })
+keymap("n", "<C-j>", ":m .+1<CR>==", { desc = "Move current line down", silent = true })
 
 -- Move current line up
-keymap("n", "<leader>k", ":m .-2<CR>==", { desc = "Move current line up", silent = true })
+--keymap("n", "<leader>k", ":m .-2<CR>==", { desc = "Move current line up", silent = true })
+keymap("n", "<C-k>", ":m .-2<CR>==", { desc = "Move current line up", silent = true })
 
 keymap("n", "<tab>", ":bnext<CR>", { desc = "Next buffer", silent = true })
 keymap("n", "<leader><tab>", ":bprev<CR>", { desc = "Previous buffer", silent = true })
-
-keymap("n", "<leader>/", "gcc", { desc = "toggle comment" })
-keymap("v", "<leader>/", "gc", { desc = "toggle comment" })
 
 keymap(
 	"n",
@@ -40,15 +40,32 @@ keymap("n", "S", "<Nop>")
 keymap("v", "<", "<gv", { desc = "Indent left and keep selection" })
 keymap("v", ">", ">gv", { desc = "Indent right and keep selection" })
 
+-- Clear highlight
+keymap("n", "<leader>nh", "<cmd>nohlsearch<CR>", { desc = "Clear highlight of search" })
+
 keymap("n", "grr", "<cmd>Telescope lsp_references<cr>", { desc = "Lsp references" })
 
 keymap({ "n", "t" }, "<A-i>", "<cmd>Floaterminal<cr>", { desc = "Open/Close Floating  Terminal" })
 
 -- Alpha dashboard
-keymap("n", "<leader>a", "<cmd>Alpha<cr>", { desc = "Open dashboard" })
+--keymap("n", "<leader>a", "<cmd>Alpha<cr>", { desc = "Open dashboard" })
 
 -- Yazi file manager
-keymap("n", "<leader>e", "<cmd>Yazi<cr>", { desc = "Open Yazi file manager" })
+keymap("n", "<leader>e", "<cmd>Yazi<CR>", { desc = "Open Yazi file manager" })
+
+-- Split creation
+vim.keymap.set("n", "<A-v>", ":vsplit<CR>", { noremap = true, silent = true, desc = "Vertical Split" })
+
+vim.keymap.set("n", "<A-s>", ":split<CR>", { noremap = true, silent = true, desc = "Horizontal Split" })
+
+-- Split navigation
+vim.keymap.set("n", "<A-h>", "<C-w>h", { noremap = true, silent = true, desc = "Move to left split" })
+
+vim.keymap.set("n", "<A-j>", "<C-w>j", { noremap = true, silent = true, desc = "Move to below split" })
+
+vim.keymap.set("n", "<A-k>", "<C-w>k", { noremap = true, silent = true, desc = "Move to above split" })
+
+vim.keymap.set("n", "<A-l>", "<C-w>l", { noremap = true, silent = true, desc = "Move to right split" })
 
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "TelescopePrompt",

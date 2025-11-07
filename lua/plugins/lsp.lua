@@ -11,7 +11,11 @@ return {
 			"MasonUpdate",
 			"MasonUpdateAll",
 		},
-		opts = {},
+		opts = {
+			ui = {
+				border = "rounded",
+			},
+		},
 	},
 	{
 		"neovim/nvim-lspconfig",

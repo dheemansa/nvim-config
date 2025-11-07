@@ -15,14 +15,12 @@ return {
 		{ "<leader>sn", function() require("telescope.builtin").find_files({ cwd = vim.fn.stdpath("config") }) end, desc = "[S]earch [N]eovim files" },
 	},
 
-	config = function()
-		require("telescope").setup({
-			defaults = {
-				layout_strategy = "horizontal",
-				layout_config = { prompt_position = "top" },
-				sorting_strategy = "ascending",
-				winblend = 0,
-			},
-		})
-	end,
+	opts = {
+		defaults = {
+			layout_strategy = "horizontal",
+			layout_config = { prompt_position = "top" },
+			sorting_strategy = "ascending",
+			winblend = 0,
+		},
+	},
 }

@@ -1,5 +1,4 @@
-> [!NOTE] _This config is tailored for my personal workflow, but feel free to use it as a starting
-> point for your own setup._
+> This config is tailored for my personal workflow, but feel free to use it as a starting point for your own setup.
 
 ## Installation
 

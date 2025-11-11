@@ -9,12 +9,31 @@ return {
 				python = { "ruff_format", "black", stop_after_first = true },
 				toml = { "taplo" },
 				markdown = { "prettier" },
-				json = { "prettier" },
+				css = { "prettier" },
+				json = { "prettier_json" },
+				jsonc = { "prettier_json" },
 			},
 
 			formatters = {
 				prettier = {
-					append_args = { "--prose-wrap", "always", "--print-width", "100" },
+                    -- stylua: ignore
+					append_args = {
+						"--prose-wrap", "always",
+						"--print-width", "100",
+						"--tab-width", "4",
+						"--use-tabs", "false",
+					},
+				},
+				prettier_json = {
+					command = "prettier",
+                    -- stylua: ignore
+                    append_args = {
+                        "--prose-wrap", "always",
+                        "--print-width", "100",
+                        "--tab-width", "4",
+                        "--use-tabs", "false",
+                        "--trailing-comma", "none",
+                    },
 				},
 			},
 

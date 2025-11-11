@@ -100,3 +100,13 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 		end
 	end,
 })
+
+-- auto delete conform logs
+vim.api.nvim_create_autocmd("VimLeave", {
+	callback = function()
+		local log = vim.fn.stdpath("state") .. "/conform.log"
+		if vim.fn.filereadable(log) == 1 then
+			vim.fn.delete(log)
+		end
+	end,
+})
